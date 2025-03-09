@@ -1,0 +1,12 @@
+Unset
+# Example manifest.yaml
+changesets:
+  - id: CS-1234
+    repositories:
+      - name: genlayer-js
+        ref: feature/new-config
+      - name: studio
+        ref: feature/new-config
+      - name: cli
+        ref: feature/cli-update
+    status: pending  # could be pending, testing, passed, failed
