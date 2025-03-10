@@ -70,24 +70,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Checkout Target Repository
-        if: env.repo_check == 'OK'
-        run: |
-          REPO_NAME=${{ matrix.repo }}
-          REPO_BRANCH=${{ matrix.branch }}
-          ORG_NAME=kalidux
-          echo "🔄 Cloning repo $REPO_NAME and checking out branch $REPO_BRANCH"
-          git clone "https://github.com/$ORG_NAME/$REPO_NAME.git"
-          cd $REPO_NAME
-          
-          git fetch --all
-          git checkout $REPO_BRANCH || git checkout -b $REPO_BRANCH origin/$REPO_BRANCH
-          
-          echo "📂 Current directory: $(pwd)"
-          ls -la  # List files to verify build.sh and test.sh are present
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Build Repository
         working-directory: ${{ matrix.repo }} 
         if: env.repo_check == 'OK'
