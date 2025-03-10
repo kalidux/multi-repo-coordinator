@@ -9,7 +9,7 @@ jobs:
   count_pending_prs:
     runs-on: ubuntu-latest
     outputs:
-      PR_COUNT: ${{ steps.parse_manifest.outputs.PR_COUNT }}  # On définit la sortie du job pour l'utiliser dans le job suivant
+      pr_indexes: ${{ steps.parse_manifest.outputs.pr_indexes }}  # Sortie avec les indices des PRs
 
     steps:
       - name: Checkout Coordinator Repo
@@ -21,25 +21,27 @@ jobs:
           # Extract and count the number of PRs in the pending changeset
           PR_COUNT=$(yq eval '.changesets[0].repositories | length' integration.yaml)
 
-          # Output the result
-          echo "Number of PRs in pending changeset: $PR_COUNT"
+          # Generate a list of PR indices to use in the matrix (0, 1, ..., PR_COUNT-1)
+          PR_INDEXES=$(seq 0 $((PR_COUNT - 1)))
 
-          # Set PR_COUNT as an output for use in the next job
-          echo "PR_COUNT=$PR_COUNT" >> $GITHUB_OUTPUT
+          # Output the PR indexes to pass to the next job
+          echo "PR_INDEXES=$PR_INDEXES" >> $GITHUB_ENV
 
-      - name: Verify PR Count
+          # Set pr_indexes as an output
+          echo "::set-output name=pr_indexes::${PR_INDEXES}"
+
+      - name: Verify PR Indexes
         run: |
-          # Verify the PR_COUNT output
-          echo "PR_COUNT: ${{ steps.parse_manifest.outputs.PR_COUNT }}"
+          # Verify the PR_INDEXES output
+          echo "PR Indexes: ${{ steps.parse_manifest.outputs.pr_indexes }}"
 
   build_repositories:
     runs-on: ubuntu-latest
     needs: count_pending_prs  # Ce job dépend du job count_pending_prs
     strategy:
       matrix:
-        pr_index: ${{ fromJSON(format('[{}]', join(', ', range(0, needs.count_pending_prs.outputs.PR_COUNT | int)))) }}  # Utilisation de needs pour la sortie du job précédent
+        pr_index: ${{ fromJson(needs.count_pending_prs.outputs.pr_indexes) }}  # Utilisation de l'output du job précédent pour créer la matrice
     steps:
-      - name: Echo Test
+      - name: Build Repository
         run: |
           echo "Running build for PR index: ${{ matrix.pr_index }}"
-          echo "test"
