@@ -52,7 +52,7 @@ jobs:
           REPO_BRANCH=${{ matrix.branch }}  # Utilisation directe des branches des repos
           # Checkout the repository with the appropriate branch using GitHub token for authentication
           echo "Checking out repository $REPO_NAME on branch $REPO_BRANCH"
-          git clone https://github.com/your-org/$REPO_NAME.git
+          git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/your-org/$REPO_NAME.git
           cd $REPO_NAME
           git checkout $REPO_BRANCH
         env:
