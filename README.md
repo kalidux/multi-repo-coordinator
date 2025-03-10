@@ -32,11 +32,13 @@ Once the correct repository and branch are checked out, the build and test steps
 
 The use of `build.sh` and `test.sh` allows for a generic build and test process across multiple repositories, making it easier to integrate new repositories without modifying the workflow each time.
 
-### Limitations and Future Improvements
+### Automated PR merging
 
-- **Merge Management**: Currently, the workflow does not handle the merge process, which needs to be implemented separately.
+The workflow includes an automated step to merge pull requests if tests pass. If the repository check (repo_check) is successful, it identifies the open pull request for the current branch and merges it using GitHub CLI `gh pr merge`. If the merge fails, the workflow posts a comment requesting an update to the branch before retrying the merge.
+
+### Limitations and Future Improvements
   
-- **Further Improvements**: There are several improvements and optimizations that can be added, such as handling merge conflicts, notifying when builds fail, and integrating more advanced testing pipelines.
+- **Further Improvements**: There are several improvements and optimizations that can be added, such as handling merge conflicts, notifying when builds fail, and integrating more advanced testing pipelines. We need to revisit the matrix to avoid displaying unnecessary jobs that are not even executed
 
 ### Goal of the Workflow
 
