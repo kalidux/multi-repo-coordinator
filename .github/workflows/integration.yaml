@@ -10,7 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       pr_indexes: ${{ steps.parse_manifest.outputs.pr_indexes }}  # Sortie avec les indices des PRs
-      repo_branches: ${{ steps.parse_manifest.outputs.repo_branches }}  # Sortie avec les repos et branches
+      repo_names: ${{ steps.parse_manifest.outputs.repo_names }}  # Sortie avec les noms des repos
+      repo_branches: ${{ steps.parse_manifest.outputs.repo_branches }}  # Sortie avec les branches des repos
 
     steps:
       - name: Checkout Coordinator Repo
@@ -26,21 +27,25 @@ jobs:
           PR_INDEXES=$(seq 0 $((PR_COUNT - 1)) | tr '\n' ',' | sed 's/,$//')  # Convert to comma-separated list
           PR_INDEXES_JSON="[${PR_INDEXES}]"  # Wrap in brackets to create a JSON array
           
-          # Extract repositories and branches and format them for matrix
-          REPO_BRANCHES=$(yq eval '.changesets[0].repositories | map({name: .name, branch: .ref})' integration.yaml)
+          # Extract repository names and branches
+          REPO_NAMES=$(yq eval '.changesets[0].repositories | map(.name)' integration.yaml | tr '\n' ',' | sed 's/,$//')
+          REPO_BRANCHES=$(yq eval '.changesets[0].repositories | map(.ref)' integration.yaml | tr '\n' ',' | sed 's/,$//')
 
-          # Output the PR indexes and repo-branches to pass to the next job
+          # Output the PR indexes, repo names, and repo branches to pass to the next job
           echo "PR_INDEXES_JSON=${PR_INDEXES_JSON}" >> $GITHUB_ENV
-          echo "REPO_BRANCHES_JSON=${REPO_BRANCHES}" >> $GITHUB_ENV
+          echo "REPO_NAMES_JSON=[${REPO_NAMES}]" >> $GITHUB_ENV
+          echo "REPO_BRANCHES_JSON=[${REPO_BRANCHES}]" >> $GITHUB_ENV
 
-          # Set pr_indexes and repo_branches as outputs
+          # Set pr_indexes, repo_names, and repo_branches as outputs
           echo "pr_indexes=${PR_INDEXES_JSON}" >> $GITHUB_OUTPUT
-          echo "repo_branches=${REPO_BRANCHES}" >> $GITHUB_OUTPUT
+          echo "repo_names=[${REPO_NAMES}]" >> $GITHUB_OUTPUT
+          echo "repo_branches=[${REPO_BRANCHES}]" >> $GITHUB_OUTPUT
 
-      - name: Verify PR Indexes and Repo Branches
+      - name: Verify PR Indexes, Repo Names, and Repo Branches
         run: |
-          # Verify the PR_INDEXES and REPO_BRANCHES outputs
+          # Verify the outputs
           echo "PR Indexes: ${{ steps.parse_manifest.outputs.pr_indexes }}"
+          echo "Repo Names: ${{ steps.parse_manifest.outputs.repo_names }}"
           echo "Repo Branches: ${{ steps.parse_manifest.outputs.repo_branches }}"
 
   build_repositories:
@@ -49,15 +54,15 @@ jobs:
     strategy:
       matrix:
         pr_index: ${{ fromJson(needs.count_pending_prs.outputs.pr_indexes) }}  # Utilisation de l'output du job précédent pour créer la matrice
-        repo_name: ${{ fromJson(needs.count_pending_prs.outputs.repo_branches) | map(.name) }}  # Extraire les noms des repos
-        repo_branch: ${{ fromJson(needs.count_pending_prs.outputs.repo_branches) | map(.branch) }}  # Extraire les branches des repos
+        repo_name: ${{ fromJson(needs.count_pending_prs.outputs.repo_names) }}  # Passer directement les noms des repos
+        repo_branch: ${{ fromJson(needs.count_pending_prs.outputs.repo_branches) }}  # Passer directement les branches des repos
     steps:
       - name: Checkout Repository for PR
         run: |
           # Get the repository and branch from the matrix values
-          REPO_NAME=${{ matrix.repo_name }}
-          REPO_BRANCH=${{ matrix.repo_branch }}
-          
+          REPO_NAME=${{ matrix.repo_name[ matrix.pr_index ] }}  # Accéder au repo correspondant à l'index
+          REPO_BRANCH=${{ matrix.repo_branch[ matrix.pr_index ] }}  # Accéder à la branche correspondante
+
           # Checkout the repository with the appropriate branch
           echo "Checking out repository $REPO_NAME on branch $REPO_BRANCH"
           git clone "https://github.com/your-org/$REPO_NAME.git"
