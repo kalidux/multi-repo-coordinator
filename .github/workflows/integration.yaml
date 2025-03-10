@@ -25,7 +25,7 @@ jobs:
           
           echo "repo_names=${REPO_NAMES}" >> $GITHUB_OUTPUT
           echo "repo_branches=${REPO_BRANCHES}" >> $GITHUB_OUTPUT
-
+          
   build_repositories:
     runs-on: ubuntu-latest
     needs: count_pending_prs
@@ -33,6 +33,7 @@ jobs:
       matrix:
         repo: ${{ fromJson(needs.count_pending_prs.outputs.repo_names) }}
         branch: ${{ fromJson(needs.count_pending_prs.outputs.repo_branches) }}
+
     steps:
       - name: Checkout Multi-Repo Coordinator Repo
         uses: actions/checkout@v4
@@ -54,7 +55,7 @@ jobs:
           fi
           echo "✅ Repo and branch found in integration.yaml: $REPO_NAME - $REPO_BRANCH"
           echo "repo_check=OK" >> $GITHUB_ENV
-
+      
       - name: Checkout Repository for PR
         if: env.repo_check != 'KO'
         run: |
@@ -81,7 +82,7 @@ jobs:
 
       - name: Build Repository
         working-directory: ${{ matrix.repo }}
-        if: env.repo_check == 'OK' && contains(fromJson(needs.count_pending_prs.outputs.repo_names), matrix.repo) && contains(fromJson(needs.count_pending_prs.outputs.repo_branches), matrix.branch)
+        if: env.repo_check == 'OK'
         run: |
           echo "🚀 Building repo ${{ matrix.repo }} on branch ${{ matrix.branch }}"
           if [ -f build.sh ]; then
@@ -94,7 +95,7 @@ jobs:
 
       - name: Test Repository
         working-directory: ${{ matrix.repo }}
-        if: env.repo_check == 'OK' && contains(fromJson(needs.count_pending_prs.outputs.repo_names), matrix.repo) && contains(fromJson(needs.count_pending_prs.outputs.repo_branches), matrix.branch)
+        if: env.repo_check == 'OK'
         run: |
           echo "🧪 Testing repo ${{ matrix.repo }} on branch ${{ matrix.branch }}"
           if [ -f test.sh ]; then
@@ -106,7 +107,7 @@ jobs:
           fi
 
       - name: Merge Pull Request if Tests Pass
-        if: env.repo_check == 'OK' && contains(fromJson(needs.count_pending_prs.outputs.repo_names), matrix.repo) && contains(fromJson(needs.count_pending_prs.outputs.repo_branches), matrix.branch)
+        if: env.repo_check == 'OK'
         run: |
           PR_NUMBER=$(gh pr list --repo kalidux/${{ matrix.repo }} --state open --head ${{ matrix.branch }} --json number --jq '.[0].number')
           if [ -z "$PR_NUMBER" ]; then
@@ -121,3 +122,22 @@ jobs:
           }
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+
+  status:
+    runs-on: ubuntu-latest
+    needs: build_repositories
+    steps:
+      - name: Display PR Merge Status
+        run: |
+          echo "📢 Reporting Status of Merged PRs"
+          
+          # Loop over the repos and display merge details
+          for i in ${{ fromJson(needs.build_repositories.outputs.repo_names) }}
+          do
+            PR_NUMBER=$(gh pr list --repo kalidux/$i --state merged --json number,title,headRefName,baseRefName --jq '.[0].number')
+            if [ -n "$PR_NUMBER" ]; then
+              echo "✅ PR #$PR_NUMBER has been merged for repo $i on branch ${{ matrix.branch }}."
+            else
+              echo "⚠️ No merged PR found for repo $i on branch ${{ matrix.branch }}."
+            fi
+          done
