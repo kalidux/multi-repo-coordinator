@@ -42,6 +42,7 @@ jobs:
 
       - name: Parse integration.yaml and verify repositories
         id: verify_repo
+        continue-on-error: true
         run: |
           REPO_NAME=${{ matrix.repo }}
           REPO_BRANCH=${{ matrix.branch }}
@@ -52,7 +53,7 @@ jobs:
           if ! grep -q "name: $REPO_NAME" integration.yaml || ! grep -A 2 "name: $REPO_NAME" integration.yaml | grep -q "ref: $REPO_BRANCH"; then
             echo "❌ Repo '$REPO_NAME' avec la branche '$REPO_BRANCH' non trouvé dans integration.yaml."
             echo "repo_check=KO" >> $GITHUB_ENV  # Marquer le repo comme introuvable
-            exit 0  # Annule proprement le job
+            exit 78  # ANNULATION propre pour rendre le job GRIS
           fi
 
           echo "✅ Repo et branche trouvés dans integration.yaml: $REPO_NAME - $REPO_BRANCH"
