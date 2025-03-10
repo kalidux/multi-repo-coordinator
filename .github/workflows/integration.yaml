@@ -34,7 +34,7 @@ jobs:
     needs: count_pending_prs
     strategy:
       matrix:
-        pr_index: ${{ fromJSON(format('[{}]', join(', ', range(0, steps.count_pending_prs.outputs.PR_COUNT | int)))) }}
+        pr_index: ${{ fromJSON(format('[{}]', join(', ', steps.count_pending_prs.outputs.PR_COUNT | int))) }}
     steps:
       - name: Echo Test
         run: |
