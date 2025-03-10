@@ -60,16 +60,16 @@ jobs:
           git clone https://github.com/kalidux/multi-repo-coordinator.git
           cd multi-repo-coordinator
 
-          # Vérifier si le dépôt et la branche sont présents dans integration.yaml
-          BRANCH_EXISTS=$(grep -A 5 "$REPO_NAME" integration.yaml | grep "$REPO_BRANCH")
+          # Vérifier si le repo et la branche sont bien ensemble
+          MATCH_FOUND=$(yq e '.changesets[].repositories[] | select(.name == "'"$REPO_NAME"'") | .ref' integration.yaml | grep -Fx "$REPO_BRANCH" || true)
           
-          if [[ -z "$BRANCH_EXISTS" ]]; then
-            echo "ERROR: Branch '$REPO_BRANCH' for repo '$REPO_NAME' not found in integration.yaml"
+          if [[ -z "$MATCH_FOUND" ]]; then
+            echo "ERROR: Repo '$REPO_NAME' does not have branch '$REPO_BRANCH' in integration.yaml"
+            echo "Cancelling job..."
             exit 78  # Cancel job if branch not found
           fi
 
           echo "Repo and branch verified in integration.yaml for $REPO_NAME - $REPO_BRANCH"
-
 
       - name: Checkout Repository for PR
         run: |
