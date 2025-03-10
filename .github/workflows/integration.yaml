@@ -107,5 +107,6 @@ jobs:
             gh pr merge $PR_NUMBER --admin --repo kalidux/${{ matrix.repo }}
           else
             echo "⚠️ No open PR found for branch ${{ matrix.branch }} in ${{ matrix.repo }}"
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
