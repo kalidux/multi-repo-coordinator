@@ -65,7 +65,7 @@ jobs:
           
           if [[ -z "$BRANCH_EXISTS" ]]; then
             echo "ERROR: Branch '$REPO_BRANCH' for repo '$REPO_NAME' not found in integration.yaml"
-            exit 0  # Sortir si la branche n'existe pas
+            exit 78  # Cancel job if branch not found
           fi
 
           echo "Repo and branch verified in integration.yaml for $REPO_NAME - $REPO_BRANCH"
