@@ -31,8 +31,11 @@ jobs:
     needs: count_pending_prs
     strategy:
       matrix:
-        repo: ${{ fromJson(needs.count_pending_prs.outputs.repo_names) }}
-        branch: ${{ fromJson(needs.count_pending_prs.outputs.repo_branches) }}
+        # Conversion de la liste des noms de repos et branches extraites dynamiquement
+        repo_branch_pairs: ${{ fromJson(needs.count_pending_prs.outputs.repo_names) | zip(fromJson(needs.count_pending_prs.outputs.repo_branches)) }}
+        include:
+          - repo: ${{ matrix.repo_branch_pairs[0] }}
+            branch: ${{ matrix.repo_branch_pairs[1] }}
       fail-fast: false  # Pour éviter d'annuler tous les jobs si un échoue
 
     steps:
