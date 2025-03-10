@@ -45,14 +45,15 @@ jobs:
     needs: count_pending_prs  # Ce job dépend du job count_pending_prs
     strategy:
       matrix:
-        repo_name: ${{ fromJson(needs.count_pending_prs.outputs.repo_names) }}  # Liste des noms des repos
-        repo_branch: ${{ fromJson(needs.count_pending_prs.outputs.repo_branches) }}  # Liste des branches des repos
+        # Génère une matrice combinée de repo et branche
+        repo: ${{ fromJson(needs.count_pending_prs.outputs.repo_names) }}  # Liste des noms des repos
+        branch: ${{ fromJson(needs.count_pending_prs.outputs.repo_branches) }}  # Liste des branches des repos
     steps:
       - name: Checkout Repository for PR
         run: |
           # Get the repository and branch from the matrix values
-          REPO_NAME=${{ matrix.repo_name }}  # Utilisation directe des noms des repos
-          REPO_BRANCH=${{ matrix.repo_branch }}  # Utilisation directe des branches des repos
+          REPO_NAME=${{ matrix.repo }}  # Utilisation directe des noms des repos
+          REPO_BRANCH=${{ matrix.branch }}  # Utilisation directe des branches des repos
 
           # Checkout the repository with the appropriate branch
           echo "Checking out repository $REPO_NAME on branch $REPO_BRANCH"
@@ -62,5 +63,5 @@ jobs:
     
       - name: Build Repository
         run: |
-          echo "Running build for repository ${{ matrix.repo_name }} on branch ${{ matrix.repo_branch }}"
+          echo "Running build for repository ${{ matrix.repo }} on branch ${{ matrix.branch }}"
           # Add your build commands here
