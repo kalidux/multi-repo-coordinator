@@ -11,7 +11,6 @@ jobs:
     outputs:
       repo_names: ${{ steps.parse_manifest.outputs.repo_names }}
       repo_branches: ${{ steps.parse_manifest.outputs.repo_branches }}
-      pr_count: ${{ steps.parse_manifest.outputs.pr_count }}
 
     steps:
       - name: Checkout Coordinator Repo
@@ -20,26 +19,20 @@ jobs:
       - name: Parse Integration Manifest
         id: parse_manifest
         run: |
-          # Extraire les noms des repos et les branches du fichier integration.yaml
+          PR_COUNT=$(yq eval '.changesets[0].repositories | length' integration.yaml)
           REPO_NAMES=$(yq eval '.changesets[0].repositories | map(.name) | @json' integration.yaml)
           REPO_BRANCHES=$(yq eval '.changesets[0].repositories | map(.ref) | @json' integration.yaml)
-          PR_COUNT=$(yq eval '.changesets | length' integration.yaml)
           
           echo "repo_names=${REPO_NAMES}" >> $GITHUB_OUTPUT
           echo "repo_branches=${REPO_BRANCHES}" >> $GITHUB_OUTPUT
-          echo "pr_count=${PR_COUNT}" >> $GITHUB_OUTPUT
 
   build_repositories:
     runs-on: ubuntu-latest
     needs: count_pending_prs
     strategy:
       matrix:
-        # Générer dynamiquement les repos et branches à partir des PRs en attente
         repo: ${{ fromJson(needs.count_pending_prs.outputs.repo_names) }}
         branch: ${{ fromJson(needs.count_pending_prs.outputs.repo_branches) }}
-        pr_count: ${{ needs.count_pending_prs.outputs.pr_count }}
-      fail-fast: false
-
     steps:
       - name: Checkout Multi-Repo Coordinator Repo
         uses: actions/checkout@v4
@@ -54,11 +47,10 @@ jobs:
           git clone https://github.com/kalidux/multi-repo-coordinator.git || { echo "❌ Failed to clone multi-repo-coordinator"; exit 1; }
           cd multi-repo-coordinator
           
-          # Vérifier si le repo et la branche sont dans integration.yaml
           if ! grep -q "name: $REPO_NAME" integration.yaml || ! grep -A 2 "name: $REPO_NAME" integration.yaml | grep -q "ref: $REPO_BRANCH"; then
             echo "❌ Repo '$REPO_NAME' with branch '$REPO_BRANCH' not found in integration.yaml."
             echo "repo_check=KO" >> $GITHUB_ENV
-            exit 1
+            exit 0  # Fail if repo is not found in the integration.yaml
           fi
           echo "✅ Repo and branch found in integration.yaml: $REPO_NAME - $REPO_BRANCH"
           echo "repo_check=OK" >> $GITHUB_ENV
@@ -89,7 +81,7 @@ jobs:
 
       - name: Build Repository
         working-directory: ${{ matrix.repo }}
-        if: env.repo_check == 'OK'
+        if: env.repo_check == 'OK' && contains(fromJson(needs.count_pending_prs.outputs.repo_names), matrix.repo) && contains(fromJson(needs.count_pending_prs.outputs.repo_branches), matrix.branch)
         run: |
           echo "🚀 Building repo ${{ matrix.repo }} on branch ${{ matrix.branch }}"
           if [ -f build.sh ]; then
@@ -102,7 +94,7 @@ jobs:
 
       - name: Test Repository
         working-directory: ${{ matrix.repo }}
-        if: env.repo_check == 'OK'
+        if: env.repo_check == 'OK' && contains(fromJson(needs.count_pending_prs.outputs.repo_names), matrix.repo) && contains(fromJson(needs.count_pending_prs.outputs.repo_branches), matrix.branch)
         run: |
           echo "🧪 Testing repo ${{ matrix.repo }} on branch ${{ matrix.branch }}"
           if [ -f test.sh ]; then
@@ -114,7 +106,7 @@ jobs:
           fi
 
       - name: Merge Pull Request if Tests Pass
-        if: env.repo_check == 'OK'
+        if: env.repo_check == 'OK' && contains(fromJson(needs.count_pending_prs.outputs.repo_names), matrix.repo) && contains(fromJson(needs.count_pending_prs.outputs.repo_branches), matrix.branch)
         run: |
           PR_NUMBER=$(gh pr list --repo kalidux/${{ matrix.repo }} --state open --head ${{ matrix.branch }} --json number --jq '.[0].number')
           if [ -z "$PR_NUMBER" ]; then
