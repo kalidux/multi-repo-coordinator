@@ -25,7 +25,6 @@ jobs:
           
           echo "repo_names=${REPO_NAMES}" >> $GITHUB_OUTPUT
           echo "repo_branches=${REPO_BRANCHES}" >> $GITHUB_OUTPUT
-          
   build_repositories:
     runs-on: ubuntu-latest
     needs: count_pending_prs
@@ -92,7 +91,6 @@ jobs:
             echo "❌ build.sh not found in the repository."
             exit 1
           fi
-
       - name: Test Repository
         working-directory: ${{ matrix.repo }}
         if: env.repo_check == 'OK'
@@ -105,7 +103,6 @@ jobs:
             echo "❌ test.sh not found in the repository."
             exit 1
           fi
-
       - name: Merge Pull Request if Tests Pass
         if: env.repo_check == 'OK'
         run: |
@@ -122,28 +119,3 @@ jobs:
           }
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
-
-  status:
-    runs-on: ubuntu-latest
-    needs: build_repositories
-    if: success()  # Only run if build_repositories job succeeded
-    steps:
-      - name: Debug: Print repo names and branches
-        run: |
-          echo "repo_names: ${{ needs.build_repositories.outputs.repo_names }}"
-          echo "repo_branches: ${{ needs.build_repositories.outputs.repo_branches }}"
-        
-      - name: Display PR Merge Status
-        run: |
-          echo "📢 Reporting Status of Merged PRs"
-          
-          # Loop over the repos and display merge details
-          for REPO_NAME in ${{ fromJson(needs.build_repositories.outputs.repo_names) }}
-          do
-            PR_NUMBER=$(gh pr list --repo kalidux/$REPO_NAME --state merged --json number,title,headRefName,baseRefName --jq '.[0].number')
-            if [ -n "$PR_NUMBER" ]; then
-              echo "✅ PR #$PR_NUMBER has been merged for repo $REPO_NAME on branch ${{ matrix.branch }}."
-            else
-              echo "⚠️ No merged PR found for repo $REPO_NAME on branch ${{ matrix.branch }}."
-            fi
-          done
