@@ -19,7 +19,7 @@ jobs:
       - name: Parse Integration Manifest
         id: parse_manifest
         run: |
-          PR_COUNT=$(yq eval '.changesets[0].repositories | length' integration.yaml)
+          # Extraire les noms des repos et les branches du fichier integration.yaml
           REPO_NAMES=$(yq eval '.changesets[0].repositories | map(.name) | @json' integration.yaml)
           REPO_BRANCHES=$(yq eval '.changesets[0].repositories | map(.ref) | @json' integration.yaml)
           
@@ -33,6 +33,7 @@ jobs:
       matrix:
         repo: ${{ fromJson(needs.count_pending_prs.outputs.repo_names) }}
         branch: ${{ fromJson(needs.count_pending_prs.outputs.repo_branches) }}
+      fail-fast: false  # Pour éviter d'annuler tous les jobs si un échoue
 
     steps:
       - name: Checkout Multi-Repo Coordinator Repo
@@ -48,6 +49,7 @@ jobs:
           git clone https://github.com/kalidux/multi-repo-coordinator.git || { echo "❌ Failed to clone multi-repo-coordinator"; exit 1; }
           cd multi-repo-coordinator
           
+          # Vérifier si le repo et la branche sont dans integration.yaml
           if ! grep -q "name: $REPO_NAME" integration.yaml || ! grep -A 2 "name: $REPO_NAME" integration.yaml | grep -q "ref: $REPO_BRANCH"; then
             echo "❌ Repo '$REPO_NAME' with branch '$REPO_BRANCH' not found in integration.yaml."
             echo "repo_check=KO" >> $GITHUB_ENV
@@ -55,7 +57,7 @@ jobs:
           fi
           echo "✅ Repo and branch found in integration.yaml: $REPO_NAME - $REPO_BRANCH"
           echo "repo_check=OK" >> $GITHUB_ENV
-      
+
       - name: Checkout Repository for PR
         if: env.repo_check != 'KO'
         run: |
@@ -110,14 +112,11 @@ jobs:
         if: env.repo_check == 'OK'
         run: |
           PR_NUMBER=$(gh pr list --repo kalidux/${{ matrix.repo }} --state open --head ${{ matrix.branch }} --json number --jq '.[0].number')
-
           if [ -z "$PR_NUMBER" ]; then
             echo "⚠️ No open PR found for branch ${{ matrix.branch }} in ${{ matrix.repo }}"
             exit 0
           fi
-
           echo "✅ Merging PR #$PR_NUMBER in ${{ matrix.repo }}"
-
           gh pr merge $PR_NUMBER --admin --merge --delete-branch --repo kalidux/${{ matrix.repo }} || {
             echo "❌ Merge failed, checking if update is needed..."
             gh pr comment $PR_NUMBER --body "🔄 Please update the branch before merging."
