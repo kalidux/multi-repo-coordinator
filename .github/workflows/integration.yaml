@@ -45,12 +45,13 @@ jobs:
         run: |
           REPO_NAME=${{ matrix.repo }}
           REPO_BRANCH=${{ matrix.branch }}
-          git clone https://github.com/kalidux/multi-repo-coordinator.git
+          git clone https://github.com/kalidux/multi-repo-coordinator.git || { echo "❌ Failed to clone multi-repo-coordinator"; exit 1; }
           cd multi-repo-coordinator
+          
           if ! grep -q "name: $REPO_NAME" integration.yaml || ! grep -A 2 "name: $REPO_NAME" integration.yaml | grep -q "ref: $REPO_BRANCH"; then
             echo "❌ Repo '$REPO_NAME' with branch '$REPO_BRANCH' not found in integration.yaml."
             echo "repo_check=KO" >> $GITHUB_ENV
-            exit 0
+            exit 0  # Fail if repo is not found in the integration.yaml
           fi
           echo "✅ Repo and branch found in integration.yaml: $REPO_NAME - $REPO_BRANCH"
           echo "repo_check=OK" >> $GITHUB_ENV
@@ -62,8 +63,15 @@ jobs:
           REPO_BRANCH=${{ matrix.branch }}
           ORG_NAME=kalidux
           echo "🔄 Cloning repo $REPO_NAME and checking out branch $REPO_BRANCH"
-          git clone "https://github.com/$ORG_NAME/$REPO_NAME.git"
-          cd $REPO_NAME
+          
+          # Check if repo already exists
+          if [ -d "$REPO_NAME" ]; then
+            echo "ℹ️ Repo $REPO_NAME already cloned. Pulling latest changes."
+            cd $REPO_NAME && git pull
+          else
+            git clone "https://github.com/$ORG_NAME/$REPO_NAME.git"
+            cd $REPO_NAME
+          fi
           
           git fetch --all
           git checkout $REPO_BRANCH || git checkout -b $REPO_BRANCH origin/$REPO_BRANCH
@@ -79,7 +87,7 @@ jobs:
           echo "🚀 Building repo ${{ matrix.repo }} on branch ${{ matrix.branch }}"
           if [ -f build.sh ]; then
             chmod +x build.sh
-            ./build.sh
+            ./build.sh || { echo "❌ Build failed for ${{ matrix.repo }}"; exit 1; }
           else
             echo "❌ build.sh not found in the repository."
             exit 1
@@ -92,7 +100,7 @@ jobs:
           echo "🧪 Testing repo ${{ matrix.repo }} on branch ${{ matrix.branch }}"
           if [ -f test.sh ]; then
             chmod +x test.sh
-            ./test.sh
+            ./test.sh || { echo "❌ Tests failed for ${{ matrix.repo }}"; exit 1; }
           else
             echo "❌ test.sh not found in the repository."
             exit 1
@@ -102,11 +110,18 @@ jobs:
         if: env.repo_check == 'OK'
         run: |
           PR_NUMBER=$(gh pr list --repo kalidux/${{ matrix.repo }} --state open --head ${{ matrix.branch }} --json number --jq '.[0].number')
-          if [ -n "$PR_NUMBER" ]; then
-            echo "✅ Merging PR #$PR_NUMBER in ${{ matrix.repo }}"
-            gh pr merge $PR_NUMBER --admin --repo kalidux/${{ matrix.repo }}
-          else
+
+          if [ -z "$PR_NUMBER" ]; then
             echo "⚠️ No open PR found for branch ${{ matrix.branch }} in ${{ matrix.repo }}"
+            exit 0
           fi
+
+          echo "✅ Merging PR #$PR_NUMBER in ${{ matrix.repo }}"
+
+          gh pr merge $PR_NUMBER --admin --merge --delete-branch --repo kalidux/${{ matrix.repo }} || {
+            echo "❌ Merge failed, checking if update is needed..."
+            gh pr comment $PR_NUMBER --body "🔄 Please update the branch before merging."
+            exit 1
+          }
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
