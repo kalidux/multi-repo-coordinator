@@ -74,3 +74,10 @@ jobs:
         if: env.repo_check != 'KO'
         run: |
           echo "🚀 Build du repo ${{ matrix.repo }} sur la branche ${{ matrix.branch }}"
+          ./build.sh 
+
+      - name: Tests 
+        if: env.repo_check != 'KO'
+        run: |
+          Test ${{ matrix.repo }} sur la branche ${{ matrix.branch }}"
+          ./test.sh 
