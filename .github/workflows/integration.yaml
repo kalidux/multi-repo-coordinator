@@ -22,7 +22,7 @@ jobs:
           PR_COUNT=$(yq eval '.changesets[0].repositories | length' integration.yaml)
 
           # Generate a list of PR indices to use in the matrix (1, 2, ..., PR_COUNT)
-          PR_INDEXES=$(seq 1 $PR_COUNT | tr '\n' ',' | sed 's/,$//')  # Convert to comma-separated list
+          PR_INDEXES=$(seq 0 $((PR_COUNT - 1)) | tr '\n' ',' | sed 's/,$//')  # Convert to comma-separated list
           PR_INDEXES_JSON="[${PR_INDEXES}]"  # Wrap in brackets to create a JSON array
 
           # Output the PR indexes to pass to the next job
@@ -43,19 +43,19 @@ jobs:
       matrix:
         pr_index: ${{ fromJson(needs.count_pending_prs.outputs.pr_indexes) }}  # Utilisation de l'output du job précédent pour créer la matrice
     steps:
-      - name: Checkout Repository
+      - name: Checkout Repository for PR
         run: |
-          # Extract repository name and branch ref for the current PR index
-          REPO_NAME=$(yq eval ".changesets[0].repositories[${{ matrix.pr_index - 1 }}].name" integration.yaml)
-          BRANCH_REF=$(yq eval ".changesets[0].repositories[${{ matrix.pr_index - 1 }}].ref" integration.yaml)
-
-          # Checkout the repository and branch
-          echo "Checking out repository: $REPO_NAME, branch: $BRANCH_REF"
-          git clone --branch "$BRANCH_REF" "https://github.com/your-org/$REPO_NAME.git"
-          cd "$REPO_NAME"
-
+          # Get the repository and branch from the manifest.yaml based on the pr_index
+          REPO_NAME=$(yq eval ".changesets[0].repositories[${{ matrix.pr_index }}].name" integration.yaml)
+          REPO_BRANCH=$(yq eval ".changesets[0].repositories[${{ matrix.pr_index }}].ref" integration.yaml)
+          
+          # Checkout the repository with the appropriate branch
+          echo "Checking out repository $REPO_NAME on branch $REPO_BRANCH"
+          git clone "https://github.com/your-org/$REPO_NAME.git"
+          cd $REPO_NAME
+          git checkout $REPO_BRANCH
+    
       - name: Build Repository
         run: |
-          echo "Building repository: $REPO_NAME, branch: $BRANCH_REF"
-          # Add your build commands here
           echo "Running build for PR index: ${{ matrix.pr_index }}"
+          # Ajoutez vos commandes de build ici
