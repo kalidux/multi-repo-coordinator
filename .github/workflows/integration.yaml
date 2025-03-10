@@ -12,7 +12,7 @@ jobs:
       - name: Checkout Coordinator Repo
         uses: actions/checkout@v4
 
-      - name: Parse Integration Manifest and Count PRs in Pending Changeset
+      - name: Parse Integration Manifest and Count Repositories in Pending Changesets
         id: parse_manifest
         run: |
           # Extract and count the number of PRs in the pending changeset
@@ -34,7 +34,7 @@ jobs:
     needs: count_pending_prs
     strategy:
       matrix:
-        pr_index: ${{ fromJSON(format('[%s]', join(', ', range(0, needs.count_pending_prs.outputs.PR_COUNT)))) }}
+        pr_index: ${{ fromJSON(format('[%s]', join(', ', seq(0, steps.count_pending_prs.outputs.PR_COUNT - 1)))) }}
     steps:
       - name: Echo Test
         run: |
