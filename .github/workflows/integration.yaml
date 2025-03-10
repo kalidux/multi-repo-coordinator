@@ -57,10 +57,16 @@ jobs:
           git config --global url."https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com".insteadOf "https://github.com"
           git clone "https://github.com/$ORG_NAME/$REPO_NAME.git"
           cd $REPO_NAME
-          git checkout $REPO_BRANCH
+          git fetch --all  # Assure-toi que toutes les branches sont récupérées
+          # Check if the branch exists, otherwise create it from the remote
+          git checkout $REPO_BRANCH || git checkout -b $REPO_BRANCH origin/$REPO_BRANCH
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Utilisation du token d'authentification de GitHub
     
+      - name: List all branches (Debug)
+        run: |
+          git branch -r  # Affiche toutes les branches distantes pour vérifier la disponibilité de la branche
+
       - name: Build Repository
         run: |
           echo "Running build for repository ${{ matrix.repo }} on branch ${{ matrix.branch }}"
