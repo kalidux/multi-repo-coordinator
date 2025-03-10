@@ -1,0 +1,30 @@
+name: Multi-Repo Integration
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  count_pending_prs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Coordinator Repo
+        uses: actions/checkout@v4
+
+      - name: Parse Integration Manifest and Count PRs in Pending Changeset
+        id: parse_manifest
+        run: |
+          # Extract and count the number of PRs in the pending changeset
+          PR_COUNT=$(yq eval '.changesets[0].repositories | length' integration.yaml)
+
+          # Output the result
+          echo "Number of PRs in pending changeset: $PR_COUNT"
+
+          # Set PR_COUNT as an environment variable for later steps
+          echo "PR_COUNT=$PR_COUNT" >> $GITHUB_ENV
+
+      - name: Verify PR Count
+        run: |
+          # Verify the PR_COUNT output
+          echo "PR_COUNT: ${{ env.PR_COUNT }}"
