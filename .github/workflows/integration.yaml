@@ -8,9 +8,6 @@ on:
 jobs:
   count_pending_prs:
     runs-on: ubuntu-latest
-    outputs:
-      PR_COUNT: ${{ steps.parse_manifest.outputs.PR_COUNT }}  # Définit la sortie du job pour l'utiliser dans la matrice
-
     steps:
       - name: Checkout Coordinator Repo
         uses: actions/checkout@v4
@@ -34,11 +31,10 @@ jobs:
 
   build_repositories:
     runs-on: ubuntu-latest
-    needs: count_pending_prs  # Indique que ce job dépend du job count_pending_prs
+    needs: count_pending_prs
     strategy:
       matrix:
-        pr_index: ${{ fromJSON(format('[{}]', join(', ', range(0, needs.count_pending_prs.outputs.PR_COUNT | int)))) }}  # Crée une matrice dynamique
-
+        pr_index: ${{ fromJSON(format('[%s]', join(', ', steps.count_pending_prs.outputs.PR_COUNT))) }}
     steps:
       - name: Echo Test
         run: |
