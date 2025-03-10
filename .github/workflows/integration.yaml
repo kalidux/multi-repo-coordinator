@@ -1,3 +1,10 @@
+name: Multi-Repo Integration
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
 jobs:
   count_pending_prs:
     runs-on: ubuntu-latest
@@ -23,7 +30,6 @@ jobs:
           # Set repo_names and repo_branches as outputs
           echo "repo_names=${REPO_NAMES}" >> $GITHUB_OUTPUT
           echo "repo_branches=${REPO_BRANCHES}" >> $GITHUB_OUTPUT
-
       - name: Verify Repo Names and Branches
         run: |
           # Verify the REPO_NAMES and REPO_BRANCHES outputs
@@ -35,21 +41,24 @@ jobs:
     needs: count_pending_prs  # Ce job dépend du job count_pending_prs
     strategy:
       matrix:
-        # Change the matrix strategy to use a list of objects (repo and branch pairs)
-        repo_branch: ${{ fromJson(needs.count_pending_prs.outputs.repo_names) | zip(fromJson(needs.count_pending_prs.outputs.repo_branches)) | map({"repo": .[0], "branch": .[1]}) }}
+        # Génère une matrice combinée de repo et branche
+        repo: ${{ fromJson(needs.count_pending_prs.outputs.repo_names) }}  # Liste des noms des repos
+        branch: ${{ fromJson(needs.count_pending_prs.outputs.repo_branches) }}  # Liste des branches des repos
     steps:
       - name: Checkout Repository for PR
         run: |
           # Get the repository and branch from the matrix values
-          REPO_NAME=${{ matrix.repo_branch.repo }}  # Utilisation des noms des repos
-          REPO_BRANCH=${{ matrix.repo_branch.branch }}  # Utilisation des branches des repos
-          # Checkout the repository with the appropriate branch
+          REPO_NAME=${{ matrix.repo }}  # Utilisation directe des noms des repos
+          REPO_BRANCH=${{ matrix.branch }}  # Utilisation directe des branches des repos
+          # Checkout the repository with the appropriate branch using GitHub token for authentication
           echo "Checking out repository $REPO_NAME on branch $REPO_BRANCH"
-          git clone "https://github.com/your-org/$REPO_NAME.git"
+          git clone https://github.com/your-org/$REPO_NAME.git
           cd $REPO_NAME
           git checkout $REPO_BRANCH
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Utilisation du token d'authentification de GitHub
     
       - name: Build Repository
         run: |
-          echo "Running build for repository ${{ matrix.repo_branch.repo }} on branch ${{ matrix.repo_branch.branch }}"
+          echo "Running build for repository ${{ matrix.repo }} on branch ${{ matrix.branch }}"
           # Add your build commands here
