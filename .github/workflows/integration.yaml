@@ -27,19 +27,19 @@ jobs:
           PR_INDEXES=$(seq 0 $((PR_COUNT - 1)) | tr '\n' ',' | sed 's/,$//')  # Convert to comma-separated list
           PR_INDEXES_JSON="[${PR_INDEXES}]"  # Wrap in brackets to create a JSON array
           
-          # Extract repository names and branches
-          REPO_NAMES=$(yq eval '.changesets[0].repositories | map(.name)' integration.yaml | tr '\n' ',' | sed 's/,$//')
-          REPO_BRANCHES=$(yq eval '.changesets[0].repositories | map(.ref)' integration.yaml | tr '\n' ',' | sed 's/,$//')
+          # Extract repository names and branches into JSON arrays
+          REPO_NAMES=$(yq eval '.changesets[0].repositories | map(.name)' integration.yaml)
+          REPO_BRANCHES=$(yq eval '.changesets[0].repositories | map(.ref)' integration.yaml)
 
           # Output the PR indexes, repo names, and repo branches to pass to the next job
           echo "PR_INDEXES_JSON=${PR_INDEXES_JSON}" >> $GITHUB_ENV
-          echo "REPO_NAMES_JSON=[${REPO_NAMES}]" >> $GITHUB_ENV
-          echo "REPO_BRANCHES_JSON=[${REPO_BRANCHES}]" >> $GITHUB_ENV
+          echo "REPO_NAMES_JSON=${REPO_NAMES}" >> $GITHUB_ENV
+          echo "REPO_BRANCHES_JSON=${REPO_BRANCHES}" >> $GITHUB_ENV
 
           # Set pr_indexes, repo_names, and repo_branches as outputs
           echo "pr_indexes=${PR_INDEXES_JSON}" >> $GITHUB_OUTPUT
-          echo "repo_names=[${REPO_NAMES}]" >> $GITHUB_OUTPUT
-          echo "repo_branches=[${REPO_BRANCHES}]" >> $GITHUB_OUTPUT
+          echo "repo_names=${REPO_NAMES}" >> $GITHUB_OUTPUT
+          echo "repo_branches=${REPO_BRANCHES}" >> $GITHUB_OUTPUT
 
       - name: Verify PR Indexes, Repo Names, and Repo Branches
         run: |
