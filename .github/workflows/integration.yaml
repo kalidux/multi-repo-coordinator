@@ -25,6 +25,7 @@ jobs:
           
           echo "repo_names=${REPO_NAMES}" >> $GITHUB_OUTPUT
           echo "repo_branches=${REPO_BRANCHES}" >> $GITHUB_OUTPUT
+
   build_repositories:
     runs-on: ubuntu-latest
     needs: count_pending_prs
@@ -34,25 +35,6 @@ jobs:
         branch: ${{ fromJson(needs.count_pending_prs.outputs.repo_branches) }}  
 
     steps:
-      - name: Checkout Multi-Repo Coordinator Repo
-        uses: actions/checkout@v4
-        with:
-          repository: kalidux/multi-repo-coordinator
-
-      - name: Parse integration.yaml and verify repositories
-        id: verify_repo
-        run: |
-          REPO_NAME=${{ matrix.repo }}
-          REPO_BRANCH=${{ matrix.branch }}
-          git clone https://github.com/kalidux/multi-repo-coordinator.git
-          cd multi-repo-coordinator
-          if ! grep -q "name: $REPO_NAME" integration.yaml || ! grep -A 2 "name: $REPO_NAME" integration.yaml | grep -q "ref: $REPO_BRANCH"; then
-            echo "❌ Repo '$REPO_NAME' avec la branche '$REPO_BRANCH' non trouvé dans integration.yaml."
-            echo "repo_check=KO" >> $GITHUB_ENV  # Marquer le repo comme introuvable
-            exit 0  # Annule proprement le job
-          fi
-          echo "✅ Repo et branche trouvés dans integration.yaml: $REPO_NAME - $REPO_BRANCH"
-          echo "repo_check=OK" >> $GITHUB_ENV  # Marquer le repo comme valide
       - name: Checkout Repository for PR
         if: env.repo_check != 'KO'
         run: |
@@ -62,26 +44,22 @@ jobs:
           echo "🔄 Clonage du repo $REPO_NAME et checkout de la branche $REPO_BRANCH"
           git clone "https://github.com/$ORG_NAME/$REPO_NAME.git"
           cd $REPO_NAME
-          
           git fetch --all
           git checkout $REPO_BRANCH || git checkout -b $REPO_BRANCH origin/$REPO_BRANCH
-          
-          git branch -r
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+          # Liste les fichiers pour vérifier que build.sh est là
+          ls -al
 
       - name: Build Repository
         if: env.repo_check != 'KO'
         run: |
           echo "🚀 Build du repo ${{ matrix.repo }} sur la branche ${{ matrix.branch }}"
-          chmod +x build.sh
-          ls -al
-          ./build.sh 
+          chmod +x build.sh  # Donne les droits d'exécution à build.sh
+          ./build.sh  # Exécute le script
 
       - name: Tests 
         if: env.repo_check != 'KO'
         run: |
-          Test ${{ matrix.repo }} sur la branche ${{ matrix.branch }}"
+          echo "Running tests for ${{ matrix.repo }} on branch ${{ matrix.branch }}"
           chmod +x test.sh
-          ls -al
-          ./test.sh 
+          ./test.sh
