@@ -50,14 +50,16 @@ jobs:
           cd multi-repo-coordinator
 
           if ! grep -q "name: $REPO_NAME" integration.yaml || ! grep -A 2 "name: $REPO_NAME" integration.yaml | grep -q "ref: $REPO_BRANCH"; then
-            echo "❌ Repo '$REPO_NAME' avec la branche '$REPO_BRANCH' non trouvé dans integration.yaml. Annulation du job."
-            exit 78  # Annule proprement le job
+            echo "❌ Repo '$REPO_NAME' avec la branche '$REPO_BRANCH' non trouvé dans integration.yaml."
+            echo "repo_check=KO" >> $GITHUB_ENV  # Marquer le repo comme introuvable
+            exit 0  # Annule proprement le job
           fi
 
           echo "✅ Repo et branche trouvés dans integration.yaml: $REPO_NAME - $REPO_BRANCH"
+          echo "repo_check=OK" >> $GITHUB_ENV  # Marquer le repo comme valide
 
       - name: Checkout Repository for PR
-        if: steps.verify_repo.outcome == 'success'
+        if: env.repo_check != 'KO'
         run: |
           REPO_NAME=${{ matrix.repo }}
           REPO_BRANCH=${{ matrix.branch }}
@@ -75,6 +77,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build Repository
-        if: steps.verify_repo.outcome == 'success'
+        if: env.repo_check != 'KO'
         run: |
           echo "🚀 Build du repo ${{ matrix.repo }} sur la branche ${{ matrix.branch }}"
