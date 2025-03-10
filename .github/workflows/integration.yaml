@@ -9,8 +9,7 @@ jobs:
   count_pending_prs:
     runs-on: ubuntu-latest
     outputs:
-      repo_names: ${{ steps.parse_manifest.outputs.repo_names }}  # Sortie avec les noms des repos
-      repo_branches: ${{ steps.parse_manifest.outputs.repo_branches }}  # Sortie avec les branches des repos
+      repo_info: ${{ steps.parse_manifest.outputs.repo_info }}  # Sortie avec les infos des repos (nom et branche)
 
     steps:
       - name: Checkout Coordinator Repo
@@ -19,41 +18,32 @@ jobs:
       - name: Parse Integration Manifest and Count Repositories in Pending Changesets
         id: parse_manifest
         run: |
-          # Extract and count the number of PRs in the pending changeset
-          PR_COUNT=$(yq eval '.changesets[0].repositories | length' integration.yaml)
-
-          # Extract repositories and branches as JSON arrays
-          REPO_NAMES=$(yq eval '.changesets[0].repositories | map(.name) | @json' integration.yaml)
-          REPO_BRANCHES=$(yq eval '.changesets[0].repositories | map(.ref) | @json' integration.yaml)
+          # Extract repository info as a JSON array
+          REPO_INFO=$(yq eval '.changesets[0].repositories | map({repo: .name, branch: .ref}) | @json' integration.yaml)
 
           # Output the repository info to pass to the next job
-          echo "REPO_NAMES_JSON=${REPO_NAMES}" >> $GITHUB_ENV
-          echo "REPO_BRANCHES_JSON=${REPO_BRANCHES}" >> $GITHUB_ENV
+          echo "REPO_INFO_JSON=${REPO_INFO}" >> $GITHUB_ENV
 
-          # Set repo_names and repo_branches as outputs
-          echo "repo_names=${REPO_NAMES}" >> $GITHUB_OUTPUT
-          echo "repo_branches=${REPO_BRANCHES}" >> $GITHUB_OUTPUT
+          # Set repo_info as an output
+          echo "repo_info=${REPO_INFO}" >> $GITHUB_OUTPUT
 
-      - name: Verify Repo Names and Branches
+      - name: Verify Repo Info
         run: |
-          # Verify the REPO_NAMES and REPO_BRANCHES outputs
-          echo "Repo Names: ${{ steps.parse_manifest.outputs.repo_names }}"
-          echo "Repo Branches: ${{ steps.parse_manifest.outputs.repo_branches }}"
+          # Verify the REPO_INFO output
+          echo "Repo Info: ${{ steps.parse_manifest.outputs.repo_info }}"
 
   build_repositories:
     runs-on: ubuntu-latest
     needs: count_pending_prs  # Ce job dépend du job count_pending_prs
     strategy:
       matrix:
-        # Génère une matrice combinée de repo et branche
-        repo: ${{ fromJson(needs.count_pending_prs.outputs.repo_names) }}  # Liste des noms des repos
-        branch: ${{ fromJson(needs.count_pending_prs.outputs.repo_branches) }}  # Liste des branches des repos
+        repo_info: ${{ fromJson(needs.count_pending_prs.outputs.repo_info) }}  # Utilisation de l'output du job précédent pour créer la matrice
     steps:
       - name: Checkout Repository for PR
         run: |
           # Get the repository and branch from the matrix values
-          REPO_NAME=${{ matrix.repo }}  # Utilisation directe des noms des repos
-          REPO_BRANCH=${{ matrix.branch }}  # Utilisation directe des branches des repos
+          REPO_NAME=${{ matrix.repo_info.repo }}  # Nom du dépôt
+          REPO_BRANCH=${{ matrix.repo_info.branch }}  # Branche du dépôt
 
           # Checkout the repository with the appropriate branch
           echo "Checking out repository $REPO_NAME on branch $REPO_BRANCH"
@@ -63,5 +53,5 @@ jobs:
     
       - name: Build Repository
         run: |
-          echo "Running build for repository ${{ matrix.repo }} on branch ${{ matrix.branch }}"
+          echo "Running build for repository ${{ matrix.repo_info.repo }} on branch ${{ matrix.repo_info.branch }}"
           # Add your build commands here
