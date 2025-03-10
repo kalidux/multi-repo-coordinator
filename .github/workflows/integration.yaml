@@ -75,6 +75,7 @@ jobs:
         run: |
           echo "🚀 Build du repo ${{ matrix.repo }} sur la branche ${{ matrix.branch }}"
           chmod +x build.sh
+          ls -al
           ./build.sh 
 
       - name: Tests 
@@ -82,4 +83,5 @@ jobs:
         run: |
           Test ${{ matrix.repo }} sur la branche ${{ matrix.branch }}"
           chmod +x test.sh
+          ls -al
           ./test.sh 
