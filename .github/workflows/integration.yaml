@@ -69,7 +69,7 @@ jobs:
           fi
 
           echo "Repo and branch verified in integration.yaml for $REPO_NAME - $REPO_BRANCH"
-        continue-on-error: true  # Ignorer l'erreur et continuer si la branche n'est pas trouvée
+
 
       - name: Checkout Repository for PR
         run: |
