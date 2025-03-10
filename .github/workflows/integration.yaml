@@ -22,7 +22,7 @@ jobs:
           PR_COUNT=$(yq eval '.changesets[0].repositories | length' integration.yaml)
 
           # Generate a list of PR indices to use in the matrix (1, ..., PR_COUNT-1)
-          PR_INDEXES=$(seq 1 $((PR_COUNT - 1)) | tr '\n' ',' | sed 's/,$//')  # Convert to comma-separated list
+          PR_INDEXES=$(seq 0 $((PR_COUNT - 1)) | tr '\n' ',' | sed 's/,$//')  # Convert to comma-separated list
           PR_INDEXES_JSON="[${PR_INDEXES}]"  # Wrap in brackets to create a JSON array
 
           # Output the PR indexes to pass to the next job
