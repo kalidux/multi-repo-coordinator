@@ -132,12 +132,12 @@ jobs:
           echo "📢 Reporting Status of Merged PRs"
           
           # Loop over the repos and display merge details
-          for i in ${{ fromJson(needs.build_repositories.outputs.repo_names) }}
+          for REPO_NAME in ${{ fromJson(needs.build_repositories.outputs.repo_names) }}
           do
-            PR_NUMBER=$(gh pr list --repo kalidux/$i --state merged --json number,title,headRefName,baseRefName --jq '.[0].number')
+            PR_NUMBER=$(gh pr list --repo kalidux/$REPO_NAME --state merged --json number,title,headRefName,baseRefName --jq '.[0].number')
             if [ -n "$PR_NUMBER" ]; then
-              echo "✅ PR #$PR_NUMBER has been merged for repo $i on branch ${{ matrix.branch }}."
+              echo "✅ PR #$PR_NUMBER has been merged for repo $REPO_NAME on branch ${{ matrix.branch }}."
             else
-              echo "⚠️ No merged PR found for repo $i on branch ${{ matrix.branch }}."
+              echo "⚠️ No merged PR found for repo $REPO_NAME on branch ${{ matrix.branch }}."
             fi
           done
