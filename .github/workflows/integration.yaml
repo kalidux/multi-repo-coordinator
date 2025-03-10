@@ -50,22 +50,30 @@ jobs:
           # Get the repository and branch from the matrix values
           REPO_NAME=${{ matrix.repo }}  # Utilisation directe des noms des repos
           REPO_BRANCH=${{ matrix.branch }}  # Utilisation directe des branches des repos
-          # Extract the organization name dynamically
-          ORG_NAME=kalidux  # Utilisation de "kalidux" comme organisation
-          # Checkout the repository using GitHub token for authentication
+          ORG_NAME=kalidux  # Organisation dynamique
+
+          # Cloner le repo (si pas déjà cloné)
           echo "Checking out repository $REPO_NAME on branch $REPO_BRANCH"
           
           # Clone the repository
-          git clone "https://github.com/kalidux/$REPO_NAME.git"
+          git clone "https://github.com/$ORG_NAME/$REPO_NAME.git"
           cd $REPO_NAME
           
           # Fetch all branches (in case the branch is not already in the local reference)
           git fetch --all
+
+          # Vérifier que la branche existe dans le fichier integration.yaml du repo
+          BRANCH_EXISTS=$(grep -A 5 "$REPO_NAME" integration.yaml | grep "$REPO_BRANCH")
           
+          if [[ -z "$BRANCH_EXISTS" ]]; then
+            echo "ERROR: Branch '$REPO_BRANCH' for repo '$REPO_NAME' not found in integration.yaml"
+            exit 1  # Sortir si la branche n'existe pas
+          fi
+
           # Checkout the branch, or create it if it doesn't exist locally
           git checkout $REPO_BRANCH || git checkout -b $REPO_BRANCH origin/$REPO_BRANCH
           
-          # Verify branch check (Debugging)
+          # Vérifier les branches disponibles
           git branch -r  # Affiche toutes les branches distantes pour vérifier que la branche est bien disponible
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Utilisation du token d'authentification de GitHub
