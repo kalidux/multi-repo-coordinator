@@ -27,20 +27,17 @@ jobs:
           # Output the PR indexes to pass to the next job
           echo "PR_INDEXES=$PR_INDEXES" >> $GITHUB_ENV
 
-          # Set pr_indexes as an output
-          echo "::set-output name=pr_indexes::${PR_INDEXES}"
-
       - name: Verify PR Indexes
         run: |
           # Verify the PR_INDEXES output
-          echo "PR Indexes: ${{ steps.parse_manifest.outputs.pr_indexes }}"
+          echo "PR Indexes: ${{ env.PR_INDEXES }}"
 
   build_repositories:
     runs-on: ubuntu-latest
     needs: count_pending_prs  # Ce job dépend du job count_pending_prs
     strategy:
       matrix:
-        pr_index: ${{ fromJson(needs.count_pending_prs.outputs.pr_indexes) }}  # Utilisation de l'output du job précédent pour créer la matrice
+        pr_index: ${{ fromJson(env.PR_INDEXES) }}  # Utilisation de l'output du job précédent pour créer la matrice
     steps:
       - name: Build Repository
         run: |
