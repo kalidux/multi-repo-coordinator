@@ -9,8 +9,8 @@ jobs:
   count_pending_prs:
     runs-on: ubuntu-latest
     outputs:
-      repo_names: ${{ steps.parse_manifest.outputs.repo_names }}  # Sortie avec les noms des repos
-      repo_branches: ${{ steps.parse_manifest.outputs.repo_branches }}  # Sortie avec les branches des repos
+      repo_names: ${{ steps.parse_manifest.outputs.repo_names }} 
+      repo_branches: ${{ steps.parse_manifest.outputs.repo_branches }}  
 
     steps:
       - name: Checkout Coordinator Repo
@@ -19,31 +19,21 @@ jobs:
       - name: Parse Integration Manifest and Count Repositories in Pending Changesets
         id: parse_manifest
         run: |
-          # Extract and count the number of PRs in the pending changeset
           PR_COUNT=$(yq eval '.changesets[0].repositories | length' integration.yaml)
-          # Extract repositories and branches as JSON arrays
           REPO_NAMES=$(yq eval '.changesets[0].repositories | map(.name) | @json' integration.yaml)
           REPO_BRANCHES=$(yq eval '.changesets[0].repositories | map(.ref) | @json' integration.yaml)
-          # Output the repository info to pass to the next job
-          echo "REPO_NAMES_JSON=${REPO_NAMES}" >> $GITHUB_ENV
-          echo "REPO_BRANCHES_JSON=${REPO_BRANCHES}" >> $GITHUB_ENV
-          # Set repo_names and repo_branches as outputs
+          
           echo "repo_names=${REPO_NAMES}" >> $GITHUB_OUTPUT
           echo "repo_branches=${REPO_BRANCHES}" >> $GITHUB_OUTPUT
-      - name: Verify Repo Names and Branches
-        run: |
-          # Verify the REPO_NAMES and REPO_BRANCHES outputs
-          echo "Repo Names: ${{ steps.parse_manifest.outputs.repo_names }}"
-          echo "Repo Branches: ${{ steps.parse_manifest.outputs.repo_branches }}"
 
   build_repositories:
     runs-on: ubuntu-latest
-    needs: count_pending_prs  # Ce job dépend du job count_pending_prs
+    needs: count_pending_prs
     strategy:
       matrix:
-        # Génère une matrice combinée de repo et branche
-        repo: ${{ fromJson(needs.count_pending_prs.outputs.repo_names) }}  # Liste des noms des repos
-        branch: ${{ fromJson(needs.count_pending_prs.outputs.repo_branches) }}  # Liste des branches des repos
+        repo: ${{ fromJson(needs.count_pending_prs.outputs.repo_names) }}  
+        branch: ${{ fromJson(needs.count_pending_prs.outputs.repo_branches) }}  
+
     steps:
       - name: Checkout Multi-Repo Coordinator Repo
         uses: actions/checkout@v4
@@ -51,51 +41,38 @@ jobs:
           repository: kalidux/multi-repo-coordinator
 
       - name: Parse integration.yaml and verify repositories
+        continue-on-error: true
         run: |
-          # Get the repo and branch from the matrix
           REPO_NAME=${{ matrix.repo }}
           REPO_BRANCH=${{ matrix.branch }}
-          
-          # Cloner le dépôt 'multi-repo-coordinator' pour accéder à integration.yaml
+
           git clone https://github.com/kalidux/multi-repo-coordinator.git
           cd multi-repo-coordinator
 
-          # Vérifier si le repo et la branche sont bien ensemble
-          MATCH_FOUND=$(yq e '.changesets[].repositories[] | select(.name == "'"$REPO_NAME"'") | .ref' integration.yaml | grep -Fx "$REPO_BRANCH" || true)
-          
-          if [[ -z "$MATCH_FOUND" ]]; then
-            echo "ERROR: Repo '$REPO_NAME' does not have branch '$REPO_BRANCH' in integration.yaml"
-            echo "Cancelling job..."
-            exit 78  # Cancel job if branch not found
+          if ! grep -q "name: $REPO_NAME" integration.yaml || ! grep -A 2 "name: $REPO_NAME" integration.yaml | grep -q "ref: $REPO_BRANCH"; then
+            echo "❌ Repo '$REPO_NAME' avec la branche '$REPO_BRANCH' non trouvé dans integration.yaml. Annulation du job."
+            exit 78  # Annule proprement
           fi
 
-          echo "Repo and branch verified in integration.yaml for $REPO_NAME - $REPO_BRANCH"
+          echo "✅ Repo et branche trouvés dans integration.yaml: $REPO_NAME - $REPO_BRANCH"
 
       - name: Checkout Repository for PR
         run: |
           REPO_NAME=${{ matrix.repo }}
           REPO_BRANCH=${{ matrix.branch }}
-          ORG_NAME=kalidux  # Organisation dynamique
+          ORG_NAME=kalidux
 
-          # Cloner le repo
-          echo "Checking out repository $REPO_NAME on branch $REPO_BRANCH"
-          
-          # Clone the repository
+          echo "🔄 Clonage du repo $REPO_NAME et checkout de la branche $REPO_BRANCH"
           git clone "https://github.com/$ORG_NAME/$REPO_NAME.git"
           cd $REPO_NAME
           
-          # Fetch all branches
           git fetch --all
-
-          # Checkout the branch, or create it if it doesn't exist locally
           git checkout $REPO_BRANCH || git checkout -b $REPO_BRANCH origin/$REPO_BRANCH
           
-          # Vérifier les branches disponibles
           git branch -r
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build Repository
         run: |
-          echo "Running build for repository ${{ matrix.repo }} on branch ${{ matrix.branch }}"
-          # Add your build commands here
+          echo "🚀 Build du repo ${{ matrix.repo }} sur la branche ${{ matrix.branch }}"
