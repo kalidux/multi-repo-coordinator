@@ -25,7 +25,6 @@ jobs:
           
           echo "repo_names=${REPO_NAMES}" >> $GITHUB_OUTPUT
           echo "repo_branches=${REPO_BRANCHES}" >> $GITHUB_OUTPUT
-
   build_repositories:
     runs-on: ubuntu-latest
     needs: count_pending_prs
@@ -42,30 +41,24 @@ jobs:
 
       - name: Parse integration.yaml and verify repositories
         id: verify_repo
-        continue-on-error: true
         run: |
           REPO_NAME=${{ matrix.repo }}
           REPO_BRANCH=${{ matrix.branch }}
-
           git clone https://github.com/kalidux/multi-repo-coordinator.git
           cd multi-repo-coordinator
-
           if ! grep -q "name: $REPO_NAME" integration.yaml || ! grep -A 2 "name: $REPO_NAME" integration.yaml | grep -q "ref: $REPO_BRANCH"; then
             echo "❌ Repo '$REPO_NAME' avec la branche '$REPO_BRANCH' non trouvé dans integration.yaml."
             echo "repo_check=KO" >> $GITHUB_ENV  # Marquer le repo comme introuvable
-            exit 78  # ANNULATION propre pour rendre le job GRIS
+            exit 0  # Annule proprement le job
           fi
-
           echo "✅ Repo et branche trouvés dans integration.yaml: $REPO_NAME - $REPO_BRANCH"
           echo "repo_check=OK" >> $GITHUB_ENV  # Marquer le repo comme valide
-
       - name: Checkout Repository for PR
         if: env.repo_check != 'KO'
         run: |
           REPO_NAME=${{ matrix.repo }}
           REPO_BRANCH=${{ matrix.branch }}
           ORG_NAME=kalidux
-
           echo "🔄 Clonage du repo $REPO_NAME et checkout de la branche $REPO_BRANCH"
           git clone "https://github.com/$ORG_NAME/$REPO_NAME.git"
           cd $REPO_NAME
