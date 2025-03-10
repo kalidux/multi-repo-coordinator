@@ -39,6 +39,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: kalidux/multi-repo-coordinator
+      
       - name: Parse integration.yaml and verify repositories
         id: verify_repo
         run: |
@@ -48,11 +49,12 @@ jobs:
           cd multi-repo-coordinator
           if ! grep -q "name: $REPO_NAME" integration.yaml || ! grep -A 2 "name: $REPO_NAME" integration.yaml | grep -q "ref: $REPO_BRANCH"; then
             echo "❌ Repo '$REPO_NAME' with branch '$REPO_BRANCH' not found in integration.yaml."
-            echo "repo_check=KO" >> $GITHUB_ENV  # Mark repo as not found
-            exit 0  # Gracefully cancel the job
+            echo "repo_check=KO" >> $GITHUB_ENV
+            exit 0
           fi
           echo "✅ Repo and branch found in integration.yaml: $REPO_NAME - $REPO_BRANCH"
-          echo "repo_check=OK" >> $GITHUB_ENV  # Mark the repo as valid
+          echo "repo_check=OK" >> $GITHUB_ENV
+      
       - name: Checkout Repository for PR
         if: env.repo_check != 'KO'
         run: |
@@ -71,7 +73,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build Repository
-        working-directory: ${{ matrix.repo }} 
+        working-directory: ${{ matrix.repo }}
         if: env.repo_check == 'OK'
         run: |
           echo "🚀 Building repo ${{ matrix.repo }} on branch ${{ matrix.branch }}"
@@ -84,7 +86,7 @@ jobs:
           fi
 
       - name: Test Repository
-        working-directory: ${{ matrix.repo }} 
+        working-directory: ${{ matrix.repo }}
         if: env.repo_check == 'OK'
         run: |
           echo "🧪 Testing repo ${{ matrix.repo }} on branch ${{ matrix.branch }}"
@@ -95,3 +97,15 @@ jobs:
             echo "❌ test.sh not found in the repository."
             exit 1
           fi
+
+      - name: Merge Pull Request if Tests Pass
+        if: env.repo_check == 'OK'
+        run: |
+          PR_NUMBER=$(gh pr list --repo kalidux/${{ matrix.repo }} --state open --head ${{ matrix.branch }} --json number --jq '.[0].number')
+          if [ -n "$PR_NUMBER" ]; then
+            echo "✅ Merging PR #$PR_NUMBER in ${{ matrix.repo }}"
+            gh pr merge $PR_NUMBER --admin --repo kalidux/${{ matrix.repo }}
+          else
+            echo "⚠️ No open PR found for branch ${{ matrix.branch }} in ${{ matrix.repo }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
